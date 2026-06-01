@@ -1,19 +1,5 @@
 # Fruitopia Ecommerce Script — Complete Installation Guide
 
-This package includes the installer and payment-safety fixes.
-
-## What was fixed in this update
-
-- **Installer check fixed:** the installer now checks for `firebase-config.json` at both:
-  - `/firebase-config.json`
-  - `/public/firebase-config.json`
-- **cPanel/source install path clarified:** if your files are inside `public_html`, place the config at:
-  - `public_html/public/firebase-config.json`
-- **No false install success:** installation will not continue until a real, valid Firebase config file is reachable.
-- **Payment safety fixed:** automatic gateways no longer confirm orders when credentials are missing or invalid. If bKash, PayPal, Stripe, Nagad, SSLCommerz, Razorpay, Paytm, UPI, JazzCash, Easypaisa, or PayFast is not configured correctly, checkout shows a payment failed/configuration error and **does not create a paid order**.
-
----
-
 ## 1. Requirements
 
 - Node.js 18+ or 20+
@@ -51,7 +37,7 @@ npm start
 
 ### Step 1 — Create Firebase project
 
-1. Go to <https://console.firebase.google.com>
+1. Go to < https://console.firebase.google.com>
 2. Click **Add project**
 3. Enter a project name
 4. Google Analytics is optional; you can disable it
