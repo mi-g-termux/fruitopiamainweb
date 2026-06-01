@@ -1,9 +1,9 @@
 {
-  "apiKey": "",
-  "authDomain": "",
-  "projectId": "",
-  "storageBucket": "",
-  "messagingSenderId": "",
-  "appId": "",
+  "apiKey": "AIzaSyDRi7XhJYZ4JSzpJptmD-GKX8Jn4pLbw7g",
+  "authDomain": "fruitopiamainweb.firebaseapp.com",
+  "projectId": "fruitopiamainweb",
+  "storageBucket": "fruitopiamainweb.firebasestorage.app",
+  "messagingSenderId": "830649754674",
+  "appId": "1:830649754674:web:24a5cb07c41b08e839882b",
   "databaseId": ""
 }
