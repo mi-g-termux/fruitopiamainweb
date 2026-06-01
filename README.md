@@ -258,8 +258,44 @@ npm install && npm run build
 ```bash
 npm start
 ```
+5. This should do must:
+->Go to Firebase Console:
+->Open your browser, go to console.firebase.google.com, and log in to your Google account.
 
-5. Add environment variables if you do not want to use installer upload.
+->Select Your Project:
+->Click on your specific project-> (e.g., fruitopiaboxx) from the dashboard.
+
+->Open Project Settings:
+
+->Look at the left-hand sidebar menu.
+
+->Click on the Gear/Cog icon (⚙️) right next to-> "Project Overview".
+
+->Select "Project settings" from the dropdown menu.
+
+->Navigate to Service Accounts:
+
+->In the Project Settings page, you will see a top navigation bar with several tabs (General, Cloud Messaging, Integrations, etc.).
+
+->Click on the "Service accounts" tab.
+
+->Generate a New Private Key:
+
+->Scroll down to the bottom of the Service accounts tab page.
+
+->You will see a blue button named "Generate new private key". Click on it.
+
+->A pop-up modal will appear warning you about storing your key safely. Click on the blue "Generate key" button inside the pop-up.
+
+->Save the File:
+
+->Firebase will automatically generate and download a .json file to your computer (the file name will look something like fruitopiaboxx-firebase-adminsdk-xxxxxx.json).
+->Add environment variable->
+
+  KEY: FIREBASE_SERVICE_ACCOUNT 
+  VALUE : copy text from the file just downloaded
+  
+
 6. Deploy.
 
 ### Render SMTP warning
