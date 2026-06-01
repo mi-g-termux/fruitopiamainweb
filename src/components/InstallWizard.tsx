@@ -517,6 +517,243 @@ function Step6Install({
   }
 
   return (
+    <div className="flex flex-col gap-6">
+      <div>
+        <h2 className="text-2xl font-bold text-gray-800 mb-1">Installing</h2>
+        <p className="text-gray-500 text-sm">
+          {installProgress.status === 'idle'
+            ? 'Ready to install. Click the button below to begin.'
+            : installProgress.status === 'done'
+            ? 'Installation successful! firebase-config.json is live in your public folder. Refresh the page to use your site.'
+            : installProgress.message || 'Working…'}
+        </p>
+      </div>
+
+      {/* Progress rows */}
+      <div className="divide-y divide-gray-100 border border-gray-100 rounded-xl px-4">
+        {ROW_LABELS.map((label, i) => {
+          const status = getRowStatus(i)
+          return (
+            <div key={i} className="flex items-center gap-3 py-3">
+              <span className="shrink-0 w-6 flex items-center justify-center">
+                {status === 'running'   && <span className="inline-block w-5 h-5 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin" />}
+                {status === 'completed' && <span className="text-emerald-500 text-lg">✅</span>}
+                {status === 'error'     && <span className="text-rose-500 text-lg">❌</span>}
+                {status === 'pending'   && <span className="inline-block w-3 h-3 rounded-full bg-gray-200" />}
+              </span>
+              <span className={`text-sm ${
+                status === 'completed' ? 'text-emerald-700 font-medium' :
+                status === 'error'     ? 'text-rose-600' :
+                status === 'running'   ? 'text-gray-800 font-medium' :
+                'text-gray-400'
+              }`}>
+                {label}
+              </span>
+            </div>
+          )
+        })}
+      </div>
+
+      {/* Awaiting upload */}
+      {installProgress.status === 'awaiting-upload' && (
+        <UploadInstructionPanel
+          onConfirmed={async () => {
+            markDone(2)
+            setInstallProgress(p => ({ ...p, status: 'running', message: 'Continuing with saved browser config…' }))
+            await runInstallFromStep3()
+          }}
+        />
+      )}
+
+      {/* Awaiting Vercel env-vars paste */}
+      {installProgress.status === 'awaiting-envvars' && installProgress.envBlock && (
+        <div className="bg-sky-50 border-l-4 border-sky-500 text-sky-900 p-4 rounded space-y-3">
+          <p className="font-semibold text-sm">🔧 One-time Vercel setup — permanent fix</p>
+          <p className="text-xs leading-relaxed">
+            Vercel's filesystem is read-only, so the installer can't write{' '}
+            <code className="bg-white px-1 rounded">firebase-config.json</code> there. Paste these
+            environment variables in <strong>Vercel → Project → Settings → Environment Variables</strong>
+            {' '}(check Production + Preview + Development), then trigger a <strong>Redeploy</strong>.
+          </p>
+          <div className="relative">
+            <pre className="bg-slate-900 text-emerald-300 text-[11px] font-mono p-3 rounded-lg overflow-x-auto select-all max-h-56">
+              {installProgress.envBlock}
+            </pre>
+            <button
+              type="button"
+              onClick={() => { try { navigator.clipboard.writeText(installProgress.envBlock || '') } catch {} }}
+              className="absolute top-2 right-2 bg-emerald-500 hover:bg-emerald-600 text-white text-[10px] font-bold uppercase px-2 py-1 rounded"
+            >
+              Copy
+            </button>
+          </div>
+          <button
+            className="bg-emerald-500 hover:bg-emerald-600 text-white text-sm font-semibold px-5 py-2 rounded-lg transition-colors duration-150"
+            onClick={async () => {
+              markDone(2)
+              setInstallProgress(p => ({ ...p, status: 'running', message: 'Continuing with saved browser config…' }))
+              await runInstallFromStep3()
+            }}
+          >
+            ✅ I've added the env-vars (or skipping for now), Continue →
+          </button>
+        </div>
+      )}
+
+      {/* Error banner */}
+      {installProgress.status === 'error' && (() => {
+        const isRulesError = /permission.denied|missing.*permission|insufficient.*permission|unauthorized|timed out/i.test(installProgress.error);
+        return (
+          <div className="bg-rose-50 border border-rose-300 text-rose-700 p-4 rounded-lg text-sm space-y-2">
+            <p className="font-semibold">Installation error</p>
+            <p className="break-words">{installProgress.error}</p>
+            {isRulesError && (
+              <div className="mt-3 bg-amber-50 border border-amber-300 text-amber-800 rounded-lg p-3 space-y-1">
+                <p className="font-bold">⚠️ Firestore security rules need to be deployed</p>
+                <pre className="bg-white border border-amber-200 rounded px-3 py-2 text-xs font-mono select-all mt-1">
+                  firebase deploy --only firestore:rules
+                </pre>
+              </div>
+            )}
+          </div>
+        );
+      })()}
+
+      {/* Action row */}
+      <div className="flex items-center justify-between">
+        {!isBlocking ? (
+          <button className={backBtn} onClick={() => setCurrentStep(5)}>← Back</button>
+        ) : (
+          <span />
+        )}
+
+        <div className="flex gap-3">
+          {installProgress.status === 'error' && (
+            <button
+              className={primaryBtn}
+              onClick={() => {
+                setInstallProgress({ step: 0, status: 'idle', message: '', error: '', completed: [] })
+                setTimeout(runInstall, 50)
+              }}
+            >
+              Try Again
+            </button>
+          )}
+          {installProgress.status === 'idle' && (
+            <button className={primaryBtn} onClick={runInstall}>
+              Install Now
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ─── Main component (DEFAULT EXPORT SPECIFIED) ───────────────────────────────
+
+export default function InstallWizard() {
+  const [currentStep, setCurrentStep] = useState<number>(1)
+  const [detectedPlatform, setDetectedPlatform] = useState<'php' | 'node' | 'none' | null>(null)
+  
+  // Credentials
+  const [creds, setCreds] = useState<FirebaseRuntimeConfig>({
+    apiKey: '', authDomain: '', projectId: '', storageBucket: '',
+    messagingSenderId: '', appId: '', measurementId: '',
+  })
+
+  // Preflight connection checks
+  const [checkTrigger, setCheckTrigger] = useState(0)
+  const [check1, setCheck1] = useState<CheckStatus>('idle')
+  const [check2, setCheck2] = useState<CheckStatus>('idle')
+  const [check3, setCheck3] = useState<CheckStatus>('idle')
+
+  // Live real-time check feedback loops
+  const [connCheck, setConnCheck] = useState<ConnStatus>('idle')
+  const [connError, setConnError] = useState('')
+
+  // Steps data states
+  const [admin, setAdmin] = useState({ username: '', password: '', confirm: '' })
+  const [store, setStore] = useState({ name: '', email: '', currency: 'USD', symbol: '$' })
+  const [step5Agreement, setStep5Agreement] = useState(false)
+
+  // Step 6 internal machine status tracker
+  const [installProgress, setInstallProgress] = useState<InstallProgressState>({
+    step: 0, status: 'idle', message: '', error: '', completed: [],
+  })
+
+  useEffect(() => {
+    ;(async () => {
+      try {
+        const result = await probeInstallHelper()
+        setDetectedPlatform(result)
+      } catch {
+        setDetectedPlatform('none')
+      }
+    })()
+  }, [])
+
+  // Step 1 check system environments trigger handles
+  useEffect(() => {
+    if (currentStep !== 1) return
+    let active = true
+
+    async function runChecks() {
+      setCheck1('running')
+      await new Promise(r => setTimeout(r, 600))
+      if (!active) return
+      setCheck1('ok')
+
+      setCheck2('running')
+      await new Promise(r => setTimeout(r, 700))
+      if (!active) return
+      setCheck2('ok')
+
+      setCheck3('running')
+      await new Promise(r => setTimeout(r, 500))
+      if (!active) return
+      setCheck3('ok')
+    }
+
+    runChecks()
+    return () => { active = false }
+  }, [currentStep, checkTrigger])
+
+  const handleTestConnection = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!creds.apiKey || !creds.projectId || !creds.appId) {
+      setConnCheck('fail')
+      setConnError('Please fill in all mandatory fields (API Key, Project ID, App ID).')
+      return
+    }
+
+    setConnCheck('running')
+    setConnError('')
+
+    try {
+      await reinitializeDynamicFirebase(creds)
+      setConnCheck('ok')
+    } catch (err: any) {
+      setConnCheck('fail')
+      setConnError(err?.message || 'Failed to connect to Firebase. Verify parameters and retry.')
+    }
+  }
+
+  const handleStep4Submit = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!admin.username || !admin.password) return alert('Fill all admin credential fields.')
+    if (admin.password !== admin.confirm)  return alert('Passwords do not match.')
+    if (admin.password.length < 6)         return alert('Password must be at least 6 characters.')
+    setCurrentStep(5)
+  }
+
+  const handleStep5Submit = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!store.name || !store.email) return alert('Fill all mandatory store profile fields.')
+    setCurrentStep(6)
+  }
+
+  return (
     <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8 font-sans">
       <div className="sm:mx-auto sm:w-full sm:max-w-md text-center">
         <h1 className="text-3xl font-extrabold text-gray-900 tracking-tight">Fruitopia Setup</h1>
@@ -596,8 +833,8 @@ function Step6Install({
               </div>
 
               <div className="flex items-center justify-between mt-2">
-                <button className={backBtn} onClick={() => setCurrentStep(1)}>← Back</button>
-                <button className={primaryBtn} onClick={() => setCurrentStep(3)}>I Have My Credentials →</button>
+                <button type="button" className={backBtn} onClick={() => setCurrentStep(1)}>← Back</button>
+                <button type="button" className={primaryBtn} onClick={() => setCurrentStep(3)}>I Have My Credentials →</button>
               </div>
             </div>
           )}
